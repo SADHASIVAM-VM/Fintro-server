@@ -33,5 +33,10 @@ const ExpenseSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+// Indexes for performance optimization
+ExpenseSchema.index({ createdBy: 1 });
+ExpenseSchema.index({ date: -1 });
+ExpenseSchema.index({ category: 1 });
+
 export const Expense = mongoose.model<IExpense>('Expense', ExpenseSchema);
 export default Expense;

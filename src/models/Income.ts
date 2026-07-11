@@ -23,5 +23,9 @@ const IncomeSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+// Indexes for performance optimization
+IncomeSchema.index({ createdBy: 1 });
+IncomeSchema.index({ date: -1 });
+
 export const Income = mongoose.model<IIncome>('Income', IncomeSchema);
 export default Income;

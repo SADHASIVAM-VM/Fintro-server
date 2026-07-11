@@ -29,5 +29,9 @@ const BorrowTransactionSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+// Indexes for performance optimization
+BorrowTransactionSchema.index({ account: 1 });
+BorrowTransactionSchema.index({ createdBy: 1 });
+
 export const BorrowTransaction = mongoose.model<IBorrowTransaction>('BorrowTransaction', BorrowTransactionSchema);
 export default BorrowTransaction;

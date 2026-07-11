@@ -29,5 +29,8 @@ const RoomInventorySchema: Schema = new Schema(
   { timestamps: true }
 );
 
+// Indexes for performance optimization
+RoomInventorySchema.index({ createdBy: 1 });
+
 export const RoomInventory = mongoose.model<IRoomInventory>('RoomInventory', RoomInventorySchema);
 export default RoomInventory;

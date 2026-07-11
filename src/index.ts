@@ -89,7 +89,7 @@ const initApp = async () => {
 app.use(cors({
   origin: process.env.ALLOWED_CORS
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Serve static uploaded receipts
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -117,4 +117,7 @@ app.get('/health', (req, res) => {
 app.use(errorHandler);
 
 // Boot server
-initApp();
+initApp().catch((err) => {
+  console.error('Critical server startup failure:', err);
+  process.exit(1);
+});

@@ -27,5 +27,9 @@ const RoomBillSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+// Indexes for performance optimization
+RoomBillSchema.index({ createdBy: 1 });
+RoomBillSchema.index({ month: 1 });
+
 export const RoomBill = mongoose.model<IRoomBill>('RoomBill', RoomBillSchema);
 export default RoomBill;

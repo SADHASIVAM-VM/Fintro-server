@@ -31,5 +31,9 @@ const RoomPurchaseSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+// Indexes for performance optimization
+RoomPurchaseSchema.index({ createdBy: 1 });
+RoomPurchaseSchema.index({ date: -1 });
+
 export const RoomPurchase = mongoose.model<IRoomPurchase>('RoomPurchase', RoomPurchaseSchema);
 export default RoomPurchase;

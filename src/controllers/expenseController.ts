@@ -61,7 +61,8 @@ export const getExpenses = async (req: AuthenticatedRequest, res: Response): Pro
       .populate('category', 'name color icon')
       .sort(sortOption)
       .skip((page - 1) * limit)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     res.status(200).json({
       data: expenses,

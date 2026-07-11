@@ -11,7 +11,7 @@ export const getSavingsGoals = async (req: AuthenticatedRequest, res: Response):
 
   try {
     const query = req.user.role === 'admin' ? {} : { createdBy: req.user.id };
-    const goals = await SavingsGoal.find(query).sort({ targetDate: 1 });
+    const goals = await SavingsGoal.find(query).sort({ targetDate: 1 }).lean();
     res.status(200).json(goals);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error loading savings goals' });

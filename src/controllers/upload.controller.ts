@@ -2,19 +2,16 @@ import { cloudnairyUpload } from "../services/upload.service"
 
 
 export const uploadImageToCloud = async (req: any, res: any) => {
-
     try {
-        const receiptImage = (req as any).file?.file?.path
-        console.log(receiptImage, "⭐⭐⭐")
+        const file = req.file;
+        console.log("File received in controller:", file, "⭐⭐⭐");
 
-        const result = await cloudnairyUpload(receiptImage)
+        const result = await cloudnairyUpload(file);
+        console.log("Cloudinary upload result:", result);
 
-        console.log(result)
-
+        res.status(200).json(result);
     }
     catch (error: any) {
         res.status(500).json({ message: error.message || 'Error upload image' });
-
-
     }
 }
