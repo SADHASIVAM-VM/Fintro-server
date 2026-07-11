@@ -80,7 +80,9 @@ const initApp = async () => {
   // }
 
   // Start Listener
-  app.listen(PORT || 5000, () => {
+  const port = process.env.PORT || 4000
+
+  app.listen(port || 5000, () => {
     console.log(`Fintro server successfully running on port ${PORT}`);
   });
 };
