@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const emiController_1 = require("../controllers/emiController");
+const auth_1 = require("../middleware/auth");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticate);
+router.get('/', emiController_1.getEmis);
+router.post('/', emiController_1.createEmi);
+router.post('/:id/pay', emiController_1.payEmiInstallment);
+router.delete('/:id', emiController_1.deleteEmi);
+exports.default = router;

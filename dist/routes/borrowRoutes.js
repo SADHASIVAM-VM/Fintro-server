@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const borrowController_1 = require("../controllers/borrowController");
+const auth_1 = require("../middleware/auth");
+const imageUpload_1 = require("../services/imageUpload");
+const router = (0, express_1.Router)();
+router.use(auth_1.authenticate);
+router.get('/accounts', borrowController_1.getBorrowAccounts);
+router.post('/accounts', borrowController_1.createBorrowAccount);
+router.post('/transactions', imageUpload_1.upload.single('receipt'), borrowController_1.addBorrowTransaction);
+router.get('/accounts/:accountId/history', borrowController_1.getBorrowHistory);
+exports.default = router;
