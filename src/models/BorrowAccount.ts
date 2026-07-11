@@ -21,5 +21,8 @@ const BorrowAccountSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+// Indexes for performance optimization
+BorrowAccountSchema.index({ createdBy: 1 });
+
 export const BorrowAccount = mongoose.model<IBorrowAccount>('BorrowAccount', BorrowAccountSchema);
 export default BorrowAccount;

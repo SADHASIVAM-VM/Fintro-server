@@ -15,7 +15,7 @@ export const getEmis = async (req: AuthenticatedRequest, res: Response): Promise
     if (req.user.role !== 'admin') {
       query.createdBy = req.user.id;
     }
-    const emis = await Emi.find(query);
+    const emis = await Emi.find(query).lean();
     res.status(200).json(emis);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error fetching EMIs' });

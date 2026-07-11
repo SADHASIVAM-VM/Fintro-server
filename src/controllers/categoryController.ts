@@ -13,7 +13,7 @@ export const getCategories = async (req: AuthenticatedRequest, res: Response): P
     // Return standard default categories (no createdBy) AND user-created categories
     const categories = await Category.find({
       $or: [{ createdBy: { $exists: false } }, { createdBy: req.user.id }],
-    });
+    }).lean();
     res.status(200).json(categories);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error loading categories' });

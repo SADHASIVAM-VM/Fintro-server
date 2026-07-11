@@ -67,17 +67,17 @@ export const exportBackup = async (req: AuthenticatedRequest, res: Response): Pr
     const backupData = {
       version: '1.0.0',
       exportedAt: new Date().toISOString(),
-      expenses: await Expense.find({ createdBy: userId }),
-      income: await Income.find({ createdBy: userId }),
-      budgets: await Budget.find({ createdBy: userId }),
-      emis: await Emi.find({ createdBy: userId }),
-      borrowAccounts: await BorrowAccount.find({ createdBy: userId }),
-      borrowTransactions: await BorrowTransaction.find({ createdBy: userId }),
-      roomRents: await RoomRent.find({ createdBy: userId }),
-      roomBills: await RoomBill.find({ createdBy: userId }),
-      roomInventory: await RoomInventory.find({ createdBy: userId }),
-      roomPurchases: await RoomPurchase.find({ createdBy: userId }),
-      savingsGoals: await SavingsGoal.find({ createdBy: userId }),
+      expenses: await Expense.find({ createdBy: userId }).lean(),
+      income: await Income.find({ createdBy: userId }).lean(),
+      budgets: await Budget.find({ createdBy: userId }).lean(),
+      emis: await Emi.find({ createdBy: userId }).lean(),
+      borrowAccounts: await BorrowAccount.find({ createdBy: userId }).lean(),
+      borrowTransactions: await BorrowTransaction.find({ createdBy: userId }).lean(),
+      roomRents: await RoomRent.find({ createdBy: userId }).lean(),
+      roomBills: await RoomBill.find({ createdBy: userId }).lean(),
+      roomInventory: await RoomInventory.find({ createdBy: userId }).lean(),
+      roomPurchases: await RoomPurchase.find({ createdBy: userId }).lean(),
+      savingsGoals: await SavingsGoal.find({ createdBy: userId }).lean(),
     };
     
     res.setHeader('Content-disposition', `attachment; filename=pfms-backup-${dayjs().format('YYYY-MM-DD')}.json`);

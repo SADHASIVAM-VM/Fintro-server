@@ -37,7 +37,8 @@ export const getUsers = async (req: AuthenticatedRequest, res: Response): Promis
       .select('-password')
       .sort(sortOption)
       .skip((page - 1) * limit)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     res.status(200).json({
       data: users,
@@ -56,7 +57,7 @@ export const getUserById = async (req: AuthenticatedRequest, res: Response): Pro
   const { id } = req.params;
 
   try {
-    const user = await User.findById(id).select('-password');
+    const user = await User.findById(id).select('-password').lean();
     if (!user) {
       res.status(404).json({ message: 'User not found' });
       return;

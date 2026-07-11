@@ -29,5 +29,8 @@ const EmiSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+// Indexes for performance optimization
+EmiSchema.index({ createdBy: 1 });
+
 export const Emi = mongoose.model<IEmi>('Emi', EmiSchema);
 export default Emi;

@@ -11,7 +11,7 @@ import { cloudnairyUpload } from '../services/upload.service';
 export const getRoomRents = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const query = req.user?.role === 'admin' ? {} : { createdBy: req.user?.id };
-    const rents = await RoomRent.find(query).sort({ month: -1 });
+    const rents = await RoomRent.find(query).sort({ month: -1 }).lean();
     res.status(200).json(rents);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error fetching room rents' });
@@ -58,7 +58,7 @@ export const payRoomRent = async (req: AuthenticatedRequest, res: Response): Pro
 export const getRoomBills = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const query = req.user?.role === 'admin' ? {} : { createdBy: req.user?.id };
-    const bills = await RoomBill.find(query).sort({ month: -1 });
+    const bills = await RoomBill.find(query).sort({ month: -1 }).lean();
     res.status(200).json(bills);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error loading bills' });
@@ -105,7 +105,7 @@ export const payRoomBill = async (req: AuthenticatedRequest, res: Response): Pro
 export const getRoomPurchases = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const query = req.user?.role === 'admin' ? {} : { createdBy: req.user?.id };
-    const purchases = await RoomPurchase.find(query).sort({ date: -1 });
+    const purchases = await RoomPurchase.find(query).sort({ date: -1 }).lean();
     res.status(200).json(purchases);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error loading room purchases' });
@@ -146,7 +146,7 @@ export const createRoomPurchase = async (req: AuthenticatedRequest, res: Respons
 export const getRoomInventory = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const query = req.user?.role === 'admin' ? {} : { createdBy: req.user?.id };
-    const inventory = await RoomInventory.find(query);
+    const inventory = await RoomInventory.find(query).lean();
     res.status(200).json(inventory);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error loading inventory' });

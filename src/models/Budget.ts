@@ -17,5 +17,9 @@ const BudgetSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+// Indexes for performance optimization
+BudgetSchema.index({ createdBy: 1 });
+BudgetSchema.index({ month: 1 });
+
 export const Budget = mongoose.model<IBudget>('Budget', BudgetSchema);
 export default Budget;

@@ -21,5 +21,9 @@ const RoomRentSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+// Indexes for performance optimization
+RoomRentSchema.index({ createdBy: 1 });
+RoomRentSchema.index({ month: 1 });
+
 export const RoomRent = mongoose.model<IRoomRent>('RoomRent', RoomRentSchema);
 export default RoomRent;

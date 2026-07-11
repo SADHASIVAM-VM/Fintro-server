@@ -25,5 +25,8 @@ const SavingsGoalSchema: Schema = new Schema(
   { timestamps: true }
 );
 
+// Indexes for performance optimization
+SavingsGoalSchema.index({ createdBy: 1 });
+
 export const SavingsGoal = mongoose.model<ISavingsGoal>('SavingsGoal', SavingsGoalSchema);
 export default SavingsGoal;
