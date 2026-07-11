@@ -88,9 +88,10 @@ const initApp = async () => {
 };
 
 // Express Middlewares
-app.use(cors({
-  origin: process.env.ALLOWED_CORS
-}));
+// app.use(cors({
+//   origin: process.env.ALLOWED_CORS
+// }));
+app.use(cors())
 app.use(express.json({ limit: '10mb' }));
 
 // Serve static uploaded receipts
