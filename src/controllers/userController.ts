@@ -40,8 +40,13 @@ export const getUsers = async (req: AuthenticatedRequest, res: Response): Promis
       .limit(limit)
       .lean();
 
+    const formattedUsers = users.map((u: any) => ({
+      ...u,
+      id: u._id.toString(),
+    }));
+
     res.status(200).json({
-      data: users,
+      data: formattedUsers,
       total,
       page,
       limit,
@@ -62,7 +67,10 @@ export const getUserById = async (req: AuthenticatedRequest, res: Response): Pro
       res.status(404).json({ message: 'User not found' });
       return;
     }
-    res.status(200).json(user);
+    res.status(200).json({
+      ...user,
+      id: user._id.toString(),
+    });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error getting user details' });
   }
