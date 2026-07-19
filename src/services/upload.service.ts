@@ -1,33 +1,26 @@
 import cloudinary from "../util/cloudinaryUpload";
-// import fs from 'fs';
 import path from 'path';
 
 export const cloudnairyUpload = async (file: any, folder: string = "Invoices"): Promise<{ success: boolean; Url?: any; error?: string }> => {
 
 
-    if (!file || !file.path) {
-        // console.error("Cloudinary upload failed: No file path provided.");
-        return { success: false, error: "No file path provided" };
+    if (!file || !file.buffer) {
+        // console.error("Cloudinary upload failed: No file buffer provided.");
+        return { success: false, error: "No file buffer provided" };
     }
 
     try {
         const fileBaseName = path.parse(file.originalname || 'upload').name;
         const publicId = `${fileBaseName}-${Date.now()}`;
 
-        const uploadResult = await cloudinary.uploader.upload(file.path, {
-            public_id: publicId,
-            folder: folder ? folder : "invoice"
-        });
+        // Convert buffer to data URI for Cloudinary
+        const base64File = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
 
-        // Clean up the local temp file after successful upload
-        // try {
-        //     if (fs.existsSync(file.path)) {
-        //         fs.unlinkSync(file.path);
-        //         console.log("Successfully deleted local temp file:", file.path);
-        //     }
-        // } catch (cleanupError) {
-        //     console.error("Failed to delete local temp file:", cleanupError);
-        // }
+        const uploadResult = await cloudinary.uploader.upload(base64File, {
+            public_id: publicId,
+            folder: folder ? folder : "invoice",
+            resource_type: "auto"
+        });
 
         return {
             success: true,
@@ -35,16 +28,6 @@ export const cloudnairyUpload = async (file: any, folder: string = "Invoices"): 
         };
     } catch (error: any) {
         console.error("Cloudinary upload service error:", error);
-
-        // Clean up the local temp file even if the upload failed
-        // try {
-        //     if (file.path && fs.existsSync(file.path)) {
-        //         fs.unlinkSync(file.path);
-        //         console.log("Deleted local temp file after upload failure:", file.path);
-        //     }
-        // } catch (cleanupError) {
-        //     console.error("Failed to delete local temp file during error handling:", cleanupError);
-        // }
 
         return {
             success: false,

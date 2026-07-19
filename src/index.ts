@@ -46,24 +46,6 @@ const DEFAULT_CATEGORIES = [
 const initApp = async () => {
   await connectDB();
 
-  // Seed default admin if missing
-  try {
-    const adminExists = await User.findOne({ email: 'sadha@admin.com' });
-    if (!adminExists) {
-      const admin = new User({
-        name: 'System Administrator',
-        email: 'sadha@admin.com',
-        password: 'sadha4545@',
-        role: 'admin',
-        avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=AdminSystem',
-      });
-      await admin.save();
-      console.log('Seeded Default Admin: admin@example.com / admin123');
-    }
-  } catch (err) {
-    console.error('Failed to seed default database:', err);
-  }
-
   // Seed standard default categories
   // try {
   //   for (const cat of DEFAULT_CATEGORIES) {
