@@ -104,11 +104,50 @@ export const payRoomBill = async (req: AuthenticatedRequest, res: Response): Pro
 
 export const getRoomPurchases = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const query = req.user?.role === 'admin' ? {} : { createdBy: req.user?.id };
-    const purchases = await RoomPurchase.find(query).sort({ date: -1 }).lean();
-    res.status(200).json(purchases);
+    const startDate = req.query.startDate ? String(req.query.startDate) : '';
+    const endDate = req.query.endDate ? String(req.query.endDate) : '';
+
+    const query: any = req.user?.role === 'admin' ? {} : { createdBy: req.user?.id };
+
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) query.date.$gte = startDate;
+      if (endDate) query.date.$lte = endDate;
+    }
+
+    const purchases = await RoomPurchase.find(query)
+      .sort({ date: -1, createdAt: -1 })
+      .lean();
+
+    const totalAmount = purchases.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
+
+    res.status(200).json({
+      data: purchases,
+      totalAmount,
+    });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error loading room purchases' });
+  }
+};
+
+export const deleteRoomPurchase = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const purchase = await RoomPurchase.findById(id);
+    if (!purchase) {
+      res.status(404).json({ message: 'Room purchase not found' });
+      return;
+    }
+
+    if (purchase.createdBy.toString() !== req.user?.id && req.user?.role !== 'admin') {
+      res.status(403).json({ message: 'Forbidden. You can only delete your own purchases.' });
+      return;
+    }
+
+    await RoomPurchase.findByIdAndDelete(id);
+    res.status(200).json({ success: true, id });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Error deleting room purchase' });
   }
 };
 

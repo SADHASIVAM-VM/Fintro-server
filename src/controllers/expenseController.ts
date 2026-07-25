@@ -53,12 +53,20 @@ export const getExpenses = async (req: AuthenticatedRequest, res: Response): Pro
 
     const sortOption: any = {};
     sortOption[sortBy] = sortOrder;
+    if (sortBy === 'date') {
+      sortOption.createdAt = sortOrder;
+    }
 
     const total = await Expense.countDocuments(query);
     const totalPages = Math.ceil(total / limit);
 
+    // Calculate total amount of all matching expenses (ignoring page pagination)
+    const matchingExpensesForSum = await Expense.find(query).select('amount').lean();
+    const totalAmount = matchingExpensesForSum.reduce((sum, item) => sum + (item.amount || 0), 0);
+
     const expenses = await Expense.find(query)
       .populate('category', 'name color icon')
+      .populate('createdBy', 'name')
       .sort(sortOption)
       .skip((page - 1) * limit)
       .limit(limit)
@@ -70,6 +78,7 @@ export const getExpenses = async (req: AuthenticatedRequest, res: Response): Pro
       page,
       limit,
       totalPages,
+      totalAmount,
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error loading expenses' });
@@ -119,7 +128,10 @@ export const createExpense = async (req: AuthenticatedRequest, res: Response): P
 
     await expense.save();
 
-    const populated = await expense.populate('category', 'name color icon');
+    const populated = await expense.populate([
+      { path: 'category', select: 'name color icon' },
+      { path: 'createdBy', select: 'name' }
+    ]);
     res.status(201).json(populated);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error creating expense' });
@@ -175,7 +187,10 @@ export const updateExpense = async (req: AuthenticatedRequest, res: Response): P
     }
 
     await expense.save();
-    const populated = await expense.populate('category', 'name color icon');
+    const populated = await expense.populate([
+      { path: 'category', select: 'name color icon' },
+      { path: 'createdBy', select: 'name' }
+    ]);
     res.status(200).json(populated);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error updating expense' });
