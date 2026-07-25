@@ -10,7 +10,7 @@ const getIncomes = async (req, res) => {
     }
     try {
         const query = req.user.role === 'admin' ? {} : { createdBy: req.user.id };
-        const incomes = await Income_1.Income.find(query).sort({ date: -1 });
+        const incomes = await Income_1.Income.find(query).sort({ date: -1 }).lean();
         res.status(200).json(incomes);
     }
     catch (error) {

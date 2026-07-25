@@ -5,11 +5,12 @@ const RoomRent_1 = require("../models/RoomRent");
 const RoomBill_1 = require("../models/RoomBill");
 const RoomInventory_1 = require("../models/RoomInventory");
 const RoomPurchase_1 = require("../models/RoomPurchase");
+const upload_service_1 = require("../services/upload.service");
 // --- ROOM RENT ENDPOINTS ---
 const getRoomRents = async (req, res) => {
     try {
         const query = req.user?.role === 'admin' ? {} : { createdBy: req.user?.id };
-        const rents = await RoomRent_1.RoomRent.find(query).sort({ month: -1 });
+        const rents = await RoomRent_1.RoomRent.find(query).sort({ month: -1 }).lean();
         res.status(200).json(rents);
     }
     catch (error) {
@@ -58,7 +59,7 @@ exports.payRoomRent = payRoomRent;
 const getRoomBills = async (req, res) => {
     try {
         const query = req.user?.role === 'admin' ? {} : { createdBy: req.user?.id };
-        const bills = await RoomBill_1.RoomBill.find(query).sort({ month: -1 });
+        const bills = await RoomBill_1.RoomBill.find(query).sort({ month: -1 }).lean();
         res.status(200).json(bills);
     }
     catch (error) {
@@ -107,7 +108,7 @@ exports.payRoomBill = payRoomBill;
 const getRoomPurchases = async (req, res) => {
     try {
         const query = req.user?.role === 'admin' ? {} : { createdBy: req.user?.id };
-        const purchases = await RoomPurchase_1.RoomPurchase.find(query).sort({ date: -1 });
+        const purchases = await RoomPurchase_1.RoomPurchase.find(query).sort({ date: -1 }).lean();
         res.status(200).json(purchases);
     }
     catch (error) {
@@ -118,7 +119,13 @@ exports.getRoomPurchases = getRoomPurchases;
 const createRoomPurchase = async (req, res) => {
     const { name, price, quantity, shop, date, warrantyMonths, category } = req.body;
     try {
-        const billImage = req.file ? `/uploads/${req.file.filename}` : undefined;
+        let billImage = undefined;
+        if (req.file) {
+            const uploadResult = await (0, upload_service_1.cloudnairyUpload)(req.file);
+            if (uploadResult?.success && uploadResult.Url?.secure_url) {
+                billImage = uploadResult.Url.secure_url;
+            }
+        }
         const purchase = new RoomPurchase_1.RoomPurchase({
             name,
             price: Number(price),
@@ -142,7 +149,7 @@ exports.createRoomPurchase = createRoomPurchase;
 const getRoomInventory = async (req, res) => {
     try {
         const query = req.user?.role === 'admin' ? {} : { createdBy: req.user?.id };
-        const inventory = await RoomInventory_1.RoomInventory.find(query);
+        const inventory = await RoomInventory_1.RoomInventory.find(query).lean();
         res.status(200).json(inventory);
     }
     catch (error) {

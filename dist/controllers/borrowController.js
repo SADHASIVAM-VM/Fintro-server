@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getBorrowHistory = exports.addBorrowTransaction = exports.createBorrowAccount = exports.getBorrowAccounts = void 0;
 const BorrowAccount_1 = require("../models/BorrowAccount");
 const BorrowTransaction_1 = require("../models/BorrowTransaction");
+const upload_service_1 = require("../services/upload.service");
 // GET ACCOUNTS WITH SUMMARY
 const getBorrowAccounts = async (req, res) => {
     if (!req.user) {
@@ -14,9 +15,20 @@ const getBorrowAccounts = async (req, res) => {
         if (req.user.role !== 'admin') {
             query.createdBy = req.user.id;
         }
-        const accounts = await BorrowAccount_1.BorrowAccount.find(query);
-        const summaries = await Promise.all(accounts.map(async (acc) => {
-            const txs = await BorrowTransaction_1.BorrowTransaction.find({ account: acc.id });
+        const accounts = await BorrowAccount_1.BorrowAccount.find(query).lean();
+        const accountIds = accounts.map(acc => acc._id);
+        // Optimized: Fetch all transactions in one query instead of in a loop
+        const allTxs = await BorrowTransaction_1.BorrowTransaction.find({ account: { $in: accountIds } }).lean();
+        // Map transactions to accounts in-memory
+        const txsByAccount = allTxs.reduce((map, tx) => {
+            const key = tx.account.toString();
+            if (!map[key])
+                map[key] = [];
+            map[key].push(tx);
+            return map;
+        }, {});
+        const summaries = accounts.map((acc) => {
+            const txs = txsByAccount[acc._id.toString()] || [];
             let totalBorrowed = 0;
             let totalLent = 0;
             let paidBorrow = 0;
@@ -44,7 +56,7 @@ const getBorrowAccounts = async (req, res) => {
                 remaining: netBorrowedOutstanding > 0 ? netBorrowedOutstanding : netLentOutstanding,
                 balanceType: netBorrowedOutstanding > 0 ? 'borrowed' : netLentOutstanding > 0 ? 'lent' : 'settled',
             };
-        }));
+        });
         res.status(200).json(summaries);
     }
     catch (error) {
@@ -86,7 +98,13 @@ const addBorrowTransaction = async (req, res) => {
             res.status(404).json({ message: 'Borrow account not found' });
             return;
         }
-        const receiptImage = req.file ? `/uploads/${req.file.filename}` : undefined;
+        let receiptImage = undefined;
+        if (req.file) {
+            const uploadResult = await (0, upload_service_1.cloudnairyUpload)(req.file);
+            if (uploadResult?.success && uploadResult.Url?.secure_url) {
+                receiptImage = uploadResult.Url.secure_url;
+            }
+        }
         const tx = new BorrowTransaction_1.BorrowTransaction({
             account: accountId,
             type,
@@ -99,7 +117,7 @@ const addBorrowTransaction = async (req, res) => {
         });
         await tx.save();
         // Dynamically update account status based on balance
-        const txs = await BorrowTransaction_1.BorrowTransaction.find({ account: accountId });
+        const txs = await BorrowTransaction_1.BorrowTransaction.find({ account: accountId }).lean();
         let borrowed = 0;
         let lent = 0;
         let paidB = 0;
@@ -128,7 +146,7 @@ exports.addBorrowTransaction = addBorrowTransaction;
 const getBorrowHistory = async (req, res) => {
     const { accountId } = req.params;
     try {
-        const txs = await BorrowTransaction_1.BorrowTransaction.find({ account: accountId }).sort({ date: -1 });
+        const txs = await BorrowTransaction_1.BorrowTransaction.find({ account: accountId }).sort({ date: -1 }).lean();
         res.status(200).json(txs);
     }
     catch (error) {

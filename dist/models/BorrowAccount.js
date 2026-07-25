@@ -45,5 +45,7 @@ const BorrowAccountSchema = new mongoose_1.Schema({
     },
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
+// Indexes for performance optimization
+BorrowAccountSchema.index({ createdBy: 1 });
 exports.BorrowAccount = mongoose_1.default.model('BorrowAccount', BorrowAccountSchema);
 exports.default = exports.BorrowAccount;

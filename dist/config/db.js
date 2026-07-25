@@ -7,7 +7,14 @@ exports.connectDB = void 0;
 const mongoose_1 = __importDefault(require("mongoose"));
 const connectDB = async () => {
     try {
-        const connStr = process.env.MONGODB_URI || 'mongodb+srv://pfms:AuRR9FbMtpIjS1a6@cluster0.7q1mjot.mongodb.net/pfms';
+        const connStr = process.env.MONGODB_URI || "";
+        // Connection event listeners
+        mongoose_1.default.connection.on('error', (err) => {
+            console.error('MongoDB connection error event:', err);
+        });
+        mongoose_1.default.connection.on('disconnected', () => {
+            console.warn('MongoDB disconnected event. Attempting to reconnect...');
+        });
         await mongoose_1.default.connect(connStr);
         console.log('MongoDB connected successfully.');
     }

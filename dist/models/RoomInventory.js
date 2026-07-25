@@ -51,5 +51,7 @@ const RoomInventorySchema = new mongoose_1.Schema({
     lastChecked: { type: String },
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
+// Indexes for performance optimization
+RoomInventorySchema.index({ createdBy: 1 });
 exports.RoomInventory = mongoose_1.default.model('RoomInventory', RoomInventorySchema);
 exports.default = exports.RoomInventory;

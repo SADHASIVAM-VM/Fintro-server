@@ -17,7 +17,7 @@ const getEmis = async (req, res) => {
         if (req.user.role !== 'admin') {
             query.createdBy = req.user.id;
         }
-        const emis = await Emi_1.Emi.find(query);
+        const emis = await Emi_1.Emi.find(query).lean();
         res.status(200).json(emis);
     }
     catch (error) {

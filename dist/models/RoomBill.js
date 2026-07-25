@@ -48,5 +48,8 @@ const RoomBillSchema = new mongoose_1.Schema({
     dueDate: { type: String, required: true },
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
+// Indexes for performance optimization
+RoomBillSchema.index({ createdBy: 1 });
+RoomBillSchema.index({ month: 1 });
 exports.RoomBill = mongoose_1.default.model('RoomBill', RoomBillSchema);
 exports.default = exports.RoomBill;

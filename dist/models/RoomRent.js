@@ -43,5 +43,8 @@ const RoomRentSchema = new mongoose_1.Schema({
     paidDate: { type: String },
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
+// Indexes for performance optimization
+RoomRentSchema.index({ createdBy: 1 });
+RoomRentSchema.index({ month: 1 });
 exports.RoomRent = mongoose_1.default.model('RoomRent', RoomRentSchema);
 exports.default = exports.RoomRent;

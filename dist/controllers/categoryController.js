@@ -12,7 +12,7 @@ const getCategories = async (req, res) => {
         // Return standard default categories (no createdBy) AND user-created categories
         const categories = await Category_1.Category.find({
             $or: [{ createdBy: { $exists: false } }, { createdBy: req.user.id }],
-        });
+        }).lean();
         res.status(200).json(categories);
     }
     catch (error) {

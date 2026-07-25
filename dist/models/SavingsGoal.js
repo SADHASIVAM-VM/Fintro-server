@@ -47,5 +47,7 @@ const SavingsGoalSchema = new mongoose_1.Schema({
     },
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
+// Indexes for performance optimization
+SavingsGoalSchema.index({ createdBy: 1 });
 exports.SavingsGoal = mongoose_1.default.model('SavingsGoal', SavingsGoalSchema);
 exports.default = exports.SavingsGoal;

@@ -21,9 +21,8 @@ const savingsRoutes_1 = __importDefault(require("./routes/savingsRoutes"));
 const reportsRoutes_1 = __importDefault(require("./routes/reportsRoutes"));
 const settingsRoutes_1 = __importDefault(require("./routes/settingsRoutes"));
 const incomeRoutes_1 = __importDefault(require("./routes/incomeRoutes"));
-const User_1 = require("./models/User");
-const Category_1 = require("./models/Category");
-const seedData_1 = require("./config/seedData");
+// import { Category } from './models/Category';
+// import { seedMockData } from './config/seedData';
 // Initialize configuration
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -46,47 +45,32 @@ const DEFAULT_CATEGORIES = [
 // Connect to Database & Seed Initial Data
 const initApp = async () => {
     await (0, db_1.connectDB)();
-    // Seed default admin if missing
-    try {
-        const adminExists = await User_1.User.findOne({ email: 'admin@example.com' });
-        if (!adminExists) {
-            const admin = new User_1.User({
-                name: 'System Administrator',
-                email: 'admin@example.com',
-                password: 'admin123',
-                role: 'admin',
-                avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=AdminSystem',
-            });
-            await admin.save();
-            console.log('Seeded Default Admin: admin@example.com / admin123');
-        }
-    }
-    catch (err) {
-        console.error('Failed to seed default database:', err);
-    }
     // Seed standard default categories
-    try {
-        for (const cat of DEFAULT_CATEGORIES) {
-            const exists = await Category_1.Category.findOne({ name: cat.name });
-            if (!exists) {
-                await Category_1.Category.create(cat);
-            }
-        }
-        console.log('Verified default category list.');
-        // Seed initial mock transaction records
-        await (0, seedData_1.seedMockData)();
-    }
-    catch (err) {
-        console.error('Failed to seed default category list:', err);
-    }
+    // try {
+    //   for (const cat of DEFAULT_CATEGORIES) {
+    //     const exists = await Category.findOne({ name: cat.name });
+    //     if (!exists) {
+    //       await Category.create(cat);
+    //     }
+    //   }
+    //   console.log('Verified default category list.');
+    //   // Seed initial mock transaction records
+    //   await seedMockData();
+    // } catch (err) {
+    //   console.error('Failed to seed default category list:', err);
+    // }
     // Start Listener
-    app.listen(PORT, () => {
+    const port = process.env.PORT || 4000;
+    app.listen(port, () => {
         console.log(`Fintro server successfully running on port ${PORT}`);
     });
 };
 // Express Middlewares
+// app.use(cors({
+//   origin: process.env.ALLOWED_CORS
+// }));
 app.use((0, cors_1.default)());
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '10mb' }));
 // Serve static uploaded receipts
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads')));
 // Routes Bindings
@@ -109,4 +93,7 @@ app.get('/health', (req, res) => {
 // Central Error Interceptor Middleware
 app.use(error_1.errorHandler);
 // Boot server
-initApp();
+initApp().catch((err) => {
+    console.error('Critical server startup failure:', err);
+    process.exit(1);
+});
