@@ -10,7 +10,7 @@ const getSavingsGoals = async (req, res) => {
     }
     try {
         const query = req.user.role === 'admin' ? {} : { createdBy: req.user.id };
-        const goals = await SavingsGoal_1.SavingsGoal.find(query).sort({ targetDate: 1 });
+        const goals = await SavingsGoal_1.SavingsGoal.find(query).sort({ targetDate: 1 }).lean();
         res.status(200).json(goals);
     }
     catch (error) {

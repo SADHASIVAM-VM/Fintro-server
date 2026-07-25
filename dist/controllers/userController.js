@@ -31,9 +31,14 @@ const getUsers = async (req, res) => {
             .select('-password')
             .sort(sortOption)
             .skip((page - 1) * limit)
-            .limit(limit);
+            .limit(limit)
+            .lean();
+        const formattedUsers = users.map((u) => ({
+            ...u,
+            id: u._id.toString(),
+        }));
         res.status(200).json({
-            data: users,
+            data: formattedUsers,
             total,
             page,
             limit,
@@ -49,12 +54,15 @@ exports.getUsers = getUsers;
 const getUserById = async (req, res) => {
     const { id } = req.params;
     try {
-        const user = await User_1.User.findById(id).select('-password');
+        const user = await User_1.User.findById(id).select('-password').lean();
         if (!user) {
             res.status(404).json({ message: 'User not found' });
             return;
         }
-        res.status(200).json(user);
+        res.status(200).json({
+            ...user,
+            id: user._id.toString(),
+        });
     }
     catch (error) {
         res.status(500).json({ message: error.message || 'Error getting user details' });

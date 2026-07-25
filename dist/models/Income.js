@@ -46,5 +46,8 @@ const IncomeSchema = new mongoose_1.Schema({
     notes: { type: String },
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
+// Indexes for performance optimization
+IncomeSchema.index({ createdBy: 1 });
+IncomeSchema.index({ date: -1 });
 exports.Income = mongoose_1.default.model('Income', IncomeSchema);
 exports.default = exports.Income;

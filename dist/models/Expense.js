@@ -51,5 +51,9 @@ const ExpenseSchema = new mongoose_1.Schema({
     tags: [{ type: String }],
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
+// Indexes for performance optimization
+ExpenseSchema.index({ createdBy: 1 });
+ExpenseSchema.index({ date: -1 });
+ExpenseSchema.index({ category: 1 });
 exports.Expense = mongoose_1.default.model('Expense', ExpenseSchema);
 exports.default = exports.Expense;

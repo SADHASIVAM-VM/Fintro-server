@@ -47,5 +47,7 @@ const EmiSchema = new mongoose_1.Schema({
     startDate: { type: String, required: true },
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
+// Indexes for performance optimization
+EmiSchema.index({ createdBy: 1 });
 exports.Emi = mongoose_1.default.model('Emi', EmiSchema);
 exports.default = exports.Emi;

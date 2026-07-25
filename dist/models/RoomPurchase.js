@@ -50,5 +50,8 @@ const RoomPurchaseSchema = new mongoose_1.Schema({
     },
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
+// Indexes for performance optimization
+RoomPurchaseSchema.index({ createdBy: 1 });
+RoomPurchaseSchema.index({ date: -1 });
 exports.RoomPurchase = mongoose_1.default.model('RoomPurchase', RoomPurchaseSchema);
 exports.default = exports.RoomPurchase;

@@ -77,17 +77,17 @@ const exportBackup = async (req, res) => {
         const backupData = {
             version: '1.0.0',
             exportedAt: new Date().toISOString(),
-            expenses: await Expense_1.Expense.find({ createdBy: userId }),
-            income: await Income_1.Income.find({ createdBy: userId }),
-            budgets: await Budget_1.Budget.find({ createdBy: userId }),
-            emis: await Emi_1.Emi.find({ createdBy: userId }),
-            borrowAccounts: await BorrowAccount_1.BorrowAccount.find({ createdBy: userId }),
-            borrowTransactions: await BorrowTransaction_1.BorrowTransaction.find({ createdBy: userId }),
-            roomRents: await RoomRent_1.RoomRent.find({ createdBy: userId }),
-            roomBills: await RoomBill_1.RoomBill.find({ createdBy: userId }),
-            roomInventory: await RoomInventory_1.RoomInventory.find({ createdBy: userId }),
-            roomPurchases: await RoomPurchase_1.RoomPurchase.find({ createdBy: userId }),
-            savingsGoals: await SavingsGoal_1.SavingsGoal.find({ createdBy: userId }),
+            expenses: await Expense_1.Expense.find({ createdBy: userId }).lean(),
+            income: await Income_1.Income.find({ createdBy: userId }).lean(),
+            budgets: await Budget_1.Budget.find({ createdBy: userId }).lean(),
+            emis: await Emi_1.Emi.find({ createdBy: userId }).lean(),
+            borrowAccounts: await BorrowAccount_1.BorrowAccount.find({ createdBy: userId }).lean(),
+            borrowTransactions: await BorrowTransaction_1.BorrowTransaction.find({ createdBy: userId }).lean(),
+            roomRents: await RoomRent_1.RoomRent.find({ createdBy: userId }).lean(),
+            roomBills: await RoomBill_1.RoomBill.find({ createdBy: userId }).lean(),
+            roomInventory: await RoomInventory_1.RoomInventory.find({ createdBy: userId }).lean(),
+            roomPurchases: await RoomPurchase_1.RoomPurchase.find({ createdBy: userId }).lean(),
+            savingsGoals: await SavingsGoal_1.SavingsGoal.find({ createdBy: userId }).lean(),
         };
         res.setHeader('Content-disposition', `attachment; filename=pfms-backup-${(0, dayjs_1.default)().format('YYYY-MM-DD')}.json`);
         res.setHeader('Content-type', 'application/json');

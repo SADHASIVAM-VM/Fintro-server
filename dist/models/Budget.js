@@ -41,5 +41,8 @@ const BudgetSchema = new mongoose_1.Schema({
     month: { type: String, required: true }, // Format YYYY-MM
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
+// Indexes for performance optimization
+BudgetSchema.index({ createdBy: 1 });
+BudgetSchema.index({ month: 1 });
 exports.Budget = mongoose_1.default.model('Budget', BudgetSchema);
 exports.default = exports.Budget;

@@ -49,5 +49,8 @@ const BorrowTransactionSchema = new mongoose_1.Schema({
     createdBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
     parentTransaction: { type: mongoose_1.Schema.Types.ObjectId, ref: 'BorrowTransaction' },
 }, { timestamps: true });
+// Indexes for performance optimization
+BorrowTransactionSchema.index({ account: 1 });
+BorrowTransactionSchema.index({ createdBy: 1 });
 exports.BorrowTransaction = mongoose_1.default.model('BorrowTransaction', BorrowTransactionSchema);
 exports.default = exports.BorrowTransaction;

@@ -11,7 +11,7 @@ const exportExpensesCSV = async (req, res) => {
     const userId = req.user.id;
     try {
         const query = req.user.role === 'admin' ? {} : { createdBy: userId };
-        const expenses = await Expense_1.Expense.find(query).populate('category', 'name');
+        const expenses = await Expense_1.Expense.find(query).populate('category', 'name').lean();
         let csv = 'ID,Title,Amount,Category,Payment Mode,Date,Time,Notes,Tags\n';
         expenses.forEach((e) => {
             const tagsStr = e.tags ? e.tags.join(';') : '';

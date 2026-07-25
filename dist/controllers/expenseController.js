@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteExpense = exports.updateExpense = exports.createExpense = exports.getExpenses = void 0;
 const Expense_1 = require("../models/Expense");
 const Category_1 = require("../models/Category");
+const upload_service_1 = require("../services/upload.service");
 // GET PAGINATED EXPENSES
 const getExpenses = async (req, res) => {
     if (!req.user) {
@@ -52,7 +53,8 @@ const getExpenses = async (req, res) => {
             .populate('category', 'name color icon')
             .sort(sortOption)
             .skip((page - 1) * limit)
-            .limit(limit);
+            .limit(limit)
+            .lean();
         res.status(200).json({
             data: expenses,
             total,
@@ -80,7 +82,14 @@ const createExpense = async (req, res) => {
             res.status(400).json({ message: 'Invalid category' });
             return;
         }
-        const receiptImage = req.file ? `/uploads/${req.file.filename}` : undefined;
+        // const receiptImage = (req as any).file ? `/uploads/${(req as any).file.filename}` : undefined;
+        let receiptImage = "null";
+        if (req.file) {
+            const uploadResult = await (0, upload_service_1.cloudnairyUpload)(req.file);
+            if (uploadResult?.success && uploadResult.Url?.secure_url) {
+                receiptImage = uploadResult.Url.secure_url;
+            }
+        }
         const parsedTags = tags ? (typeof tags === 'string' ? JSON.parse(tags) : tags) : [];
         const expense = new Expense_1.Expense({
             title,
@@ -146,7 +155,10 @@ const updateExpense = async (req, res) => {
             expense.tags = typeof tags === 'string' ? JSON.parse(tags) : tags;
         }
         if (req.file) {
-            expense.receiptImage = `/uploads/${req.file.filename}`;
+            const uploadResult = await (0, upload_service_1.cloudnairyUpload)(req.file);
+            if (uploadResult?.success && uploadResult.Url?.secure_url) {
+                expense.receiptImage = uploadResult.Url.secure_url;
+            }
         }
         await expense.save();
         const populated = await expense.populate('category', 'name color icon');

@@ -8,6 +8,7 @@ import {
   payRoomBill,
   getRoomPurchases,
   createRoomPurchase,
+  deleteRoomPurchase,
   getRoomInventory,
   createRoomInventoryItem,
   updateRoomInventoryItem,
@@ -33,6 +34,7 @@ router.post('/bills/:id/pay', payRoomBill);
 // Purchases Routes
 router.get('/purchases', getRoomPurchases);
 router.post('/purchases', upload.single('bill'), createRoomPurchase);
+router.delete('/purchases/:id', deleteRoomPurchase);
 
 // Inventory Routes
 router.get('/inventory', getRoomInventory);

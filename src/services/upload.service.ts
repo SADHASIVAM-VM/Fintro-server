@@ -1,5 +1,6 @@
 import cloudinary from "../util/cloudinaryUpload";
 import path from 'path';
+import sharp from 'sharp';
 
 export const cloudnairyUpload = async (file: any, folder: string = "Invoices"): Promise<{ success: boolean; Url?: any; error?: string }> => {
 
@@ -13,8 +14,23 @@ export const cloudnairyUpload = async (file: any, folder: string = "Invoices"): 
         const fileBaseName = path.parse(file.originalname || 'upload').name;
         const publicId = `${fileBaseName}-${Date.now()}`;
 
+        let processedBuffer = file.buffer;
+        let processedMimetype = file.mimetype;
+
+        // If the file is an image, compress and convert it to AVIF using sharp
+        if (file.mimetype && file.mimetype.startsWith('image/')) {
+            try {
+                processedBuffer = await sharp(file.buffer)
+                    .avif({ quality: 70 }) // High quality compression
+                    .toBuffer();
+                processedMimetype = 'image/avif';
+            } catch (sharpError) {
+                console.error("Sharp image conversion/compression failed, using original file buffer:", sharpError);
+            }
+        }
+
         // Convert buffer to data URI for Cloudinary
-        const base64File = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+        const base64File = `data:${processedMimetype};base64,${processedBuffer.toString("base64")}`;
 
         const uploadResult = await cloudinary.uploader.upload(base64File, {
             public_id: publicId,
