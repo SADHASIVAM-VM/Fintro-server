@@ -24,6 +24,7 @@ import planningRoutes from './routes/planningRoutes';
 import inboxRoutes from './routes/inboxRoutes';
 import insightsRoutes from './routes/insightsRoutes';
 import { User } from './models/User';
+import fs from "fs"
 // import { Category } from './models/Category';
 // import { seedMockData } from './config/seedData';
 
@@ -77,13 +78,16 @@ const initApp = async () => {
 };
 
 // Express Middlewares
-// app.use(cors({
-//   origin: process.env.ALLOWED_CORS
-// }));
-app.use(cors())
+app.use(cors({
+  origin: process.env.ALLOWED_CORS
+}));
+// app.use(cors())
 app.use(express.json({ limit: '10mb' }));
 
 // Serve static uploaded receipts
+if (!fs.existsSync(path.join(__dirname, '../uploads'))) {
+  fs.mkdirSync(path.join(__dirname, '../uploads'), { recursive: true });
+}
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes Bindings (Both Plural & Singular Aliases for full client/API compatibility)
