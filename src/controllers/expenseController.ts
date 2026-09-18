@@ -3,6 +3,7 @@ import { Expense } from '../models/Expense';
 import { Category } from '../models/Category';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { cloudnairyUpload } from '../services/upload.service';
+import { ocrProvider } from '../services/ocr.service';
 
 // GET PAGINATED EXPENSES
 export const getExpenses = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -102,20 +103,41 @@ export const createExpense = async (req: AuthenticatedRequest, res: Response): P
       return;
     }
 
-    // const receiptImage = (req as any).file ? `/uploads/${(req as any).file.filename}` : undefined;
+    let receiptImage: string | undefined = undefined;
+    let finalTitle = title;
+    let finalAmount = Number(amount);
 
-    let receiptImage = "null";
     if (req.file) {
       const uploadResult = await cloudnairyUpload(req.file);
       if (uploadResult?.success && uploadResult.Url?.secure_url) {
         receiptImage = uploadResult.Url.secure_url;
+      } else if (req.file.filename) {
+        receiptImage = `/uploads/${req.file.filename}`;
+      }
+
+      // Auto-extract OCR data if title or amount is missing
+      if (!finalTitle || isNaN(finalAmount) || finalAmount <= 0) {
+        try {
+          const { extractedData } = await ocrProvider.processReceipt(req.file.path, req.file.originalname);
+
+
+          console.log(extractedData, " extracted data ", "♨️♨️♨️♨️♨️📈")
+          if (!finalTitle && extractedData.merchant) {
+            finalTitle = extractedData.merchant;
+          }
+          if ((isNaN(finalAmount) || finalAmount <= 0) && extractedData.amount) {
+            finalAmount = extractedData.amount;
+          }
+        } catch (ocrErr) {
+          console.error('OCR auto-extract fallback error in createExpense:', ocrErr);
+        }
       }
     }
     const parsedTags = tags ? (typeof tags === 'string' ? JSON.parse(tags) : tags) : [];
 
     const expense = new Expense({
-      title,
-      amount: Number(amount),
+      title: finalTitle || 'Receipt Expense',
+      amount: finalAmount || 0,
       category,
       paymentMode,
       date,
@@ -183,6 +205,8 @@ export const updateExpense = async (req: AuthenticatedRequest, res: Response): P
       const uploadResult = await cloudnairyUpload(req.file);
       if (uploadResult?.success && uploadResult.Url?.secure_url) {
         expense.receiptImage = uploadResult.Url.secure_url;
+      } else if (req.file.filename) {
+        expense.receiptImage = `/uploads/${req.file.filename}`;
       }
     }
 

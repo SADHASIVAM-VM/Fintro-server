@@ -40,6 +40,7 @@ router.delete('/purchases/:id', deleteRoomPurchase);
 router.get('/inventory', getRoomInventory);
 router.post('/inventory', createRoomInventoryItem);
 router.patch('/inventory/:id', updateRoomInventoryItem);
+router.put('/inventory/:id', updateRoomInventoryItem);
 router.delete('/inventory/:id', deleteRoomInventoryItem);
 
 export default router;

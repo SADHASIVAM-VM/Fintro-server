@@ -1,12 +1,23 @@
 import cloudinary from "../util/cloudinaryUpload";
 import path from 'path';
+import fs from 'fs';
 import sharp from 'sharp';
 
 export const cloudnairyUpload = async (file: any, folder: string = "Invoices"): Promise<{ success: boolean; Url?: any; error?: string }> => {
+    if (!file) {
+        return { success: false, error: "No file provided" };
+    }
 
+    let fileBuffer = file.buffer;
+    if (!fileBuffer && file.path && fs.existsSync(file.path)) {
+        try {
+            fileBuffer = fs.readFileSync(file.path);
+        } catch (err) {
+            console.error("Failed to read file from disk path:", err);
+        }
+    }
 
-    if (!file || !file.buffer) {
-        // console.error("Cloudinary upload failed: No file buffer provided.");
+    if (!fileBuffer) {
         return { success: false, error: "No file buffer provided" };
     }
 
@@ -14,7 +25,7 @@ export const cloudnairyUpload = async (file: any, folder: string = "Invoices"): 
         const fileBaseName = path.parse(file.originalname || 'upload').name;
         const publicId = `${fileBaseName}-${Date.now()}`;
 
-        let processedBuffer = file.buffer;
+        let processedBuffer = fileBuffer;
         let processedMimetype = file.mimetype;
 
         // If the file is an image, compress and convert it to AVIF using sharp

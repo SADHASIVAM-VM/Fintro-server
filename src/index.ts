@@ -16,6 +16,13 @@ import savingsRoutes from './routes/savingsRoutes';
 import reportsRoutes from './routes/reportsRoutes';
 import settingsRoutes from './routes/settingsRoutes';
 import incomeRoutes from './routes/incomeRoutes';
+import accountRoutes from './routes/accountRoutes';
+import transactionRoutes from './routes/transactionRoutes';
+import recurringRoutes from './routes/recurringRoutes';
+import subscriptionRoutes from './routes/subscriptionRoutes';
+import planningRoutes from './routes/planningRoutes';
+import inboxRoutes from './routes/inboxRoutes';
+import insightsRoutes from './routes/insightsRoutes';
 import { User } from './models/User';
 // import { Category } from './models/Category';
 // import { seedMockData } from './config/seedData';
@@ -79,12 +86,14 @@ app.use(express.json({ limit: '10mb' }));
 // Serve static uploaded receipts
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Routes Bindings
+// Routes Bindings (Both Plural & Singular Aliases for full client/API compatibility)
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/expense', expenseRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/category', categoryRoutes);
 app.use('/api/borrow', borrowRoutes);
 app.use('/api/emi', emiRoutes);
 app.use('/api/room', roomRoutes);
@@ -92,6 +101,16 @@ app.use('/api/savings', savingsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/income', incomeRoutes);
+app.use('/api/accounts', accountRoutes);
+app.use('/api/account', accountRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/transaction', transactionRoutes);
+app.use('/api/recurring', recurringRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/planning', planningRoutes);
+app.use('/api/inbox', inboxRoutes);
+app.use('/api/insights', insightsRoutes);
 
 // Base Health Check Route
 app.get('/health', (req, res) => {
