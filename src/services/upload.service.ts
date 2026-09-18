@@ -31,7 +31,7 @@ export const cloudnairyUpload = async (file: any, folder: string = "Invoices"): 
         // If the file is an image, compress and convert it to AVIF using sharp
         if (file.mimetype && file.mimetype.startsWith('image/')) {
             try {
-                processedBuffer = await sharp(file.buffer)
+                processedBuffer = await sharp(fileBuffer)
                     .avif({ quality: 70 }) // High quality compression
                     .toBuffer();
                 processedMimetype = 'image/avif';

@@ -23,6 +23,7 @@ import subscriptionRoutes from './routes/subscriptionRoutes';
 import planningRoutes from './routes/planningRoutes';
 import inboxRoutes from './routes/inboxRoutes';
 import insightsRoutes from './routes/insightsRoutes';
+import { getUploadDir } from './services/imageUpload';
 import { User } from './models/User';
 import fs from "fs"
 // import { Category } from './models/Category';
@@ -84,11 +85,9 @@ app.use(cors({
 // app.use(cors())
 app.use(express.json({ limit: '10mb' }));
 
-// Serve static uploaded receipts
-if (!fs.existsSync(path.join(__dirname, '../uploads'))) {
-  fs.mkdirSync(path.join(__dirname, '../uploads'), { recursive: true });
-}
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Serve static uploaded receipts safely across local and serverless environments
+const uploadDir = getUploadDir();
+app.use('/uploads', express.static(uploadDir));
 
 // Routes Bindings (Both Plural & Singular Aliases for full client/API compatibility)
 app.use('/api/auth', authRoutes);
