@@ -2,7 +2,10 @@ import Tesseract from 'tesseract.js';
 import path from 'path';
 import fs from 'fs';
 import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import sharp from 'sharp';
+
+dayjs.extend(customParseFormat);
 
 export interface ExtractedReceiptData {
   merchant?: string;
@@ -41,50 +44,60 @@ export class TesseractOCRProvider implements IOCRProvider {
 
     // 1. Run Tesseract.js Real Image OCR Recognition if file exists on disk and is a supported image format
     const ext = path.extname(filePath || '').toLowerCase();
-    const isSupportedImage = ['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.pbm', '.avif', '.jfif'].includes(ext);
+    const isSupportedImage = ['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.pbm', '.avif', '.jfif', '.tiff', '.gif'].includes(ext);
 
     if (filePath && fs.existsSync(filePath) && isSupportedImage) {
       try {
-        // Pass 1: Full Image Recognition
-        const result = await Promise.race([
-          Tesseract.recognize(filePath, 'eng'),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Tesseract OCR timeout after 15 seconds')), 15000)
-          ),
-        ]);
-        rawOcrText = result?.data?.text || '';
-        // console.log(rawOcrText, "🟢🟢🟢")
-        if (result?.data?.confidence && result.data.confidence > 0) {
-          confidenceScore = Math.min(1.0, Math.max(0.5, result.data.confidence / 100));
+        // Pre-validate image format with Sharp to prevent Tesseract worker crashes (pixReadStream: Unknown format)
+        let imageBuffer: Buffer | null = null;
+        try {
+          imageBuffer = await sharp(filePath).png().toBuffer();
+        } catch (sharpErr) {
+          console.warn('File is not a valid/decodable image for Sharp:', sharpErr);
         }
 
-        // Pass 2: Card Crop Recognition for Mobile Payment Screenshots (GPay / PhonePe / Paytm / UPI)
-        try {
-          const meta = await sharp(filePath).metadata();
-          if (meta.width && meta.height && meta.height > meta.width) {
-            const w = meta.width;
-            const h = meta.height;
-            // Crop upper-middle payment card section (top 18% to 50%) where amounts & recipients are located
-            const cropBuf = await sharp(filePath)
-              .extract({ left: 0, top: Math.floor(h * 0.18), width: w, height: Math.floor(h * 0.32) })
-              .resize(1200)
-              .grayscale()
-              .threshold(140)
-              .toBuffer();
-
-            const cropResult = await Promise.race([
-              Tesseract.recognize(cropBuf, 'eng'),
-              new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error('Tesseract Crop OCR timeout')), 10000)
-              ),
-            ]);
-
-            if (cropResult?.data?.text) {
-              rawOcrText += '\n[PAYMENT_CARD_CROP]\n' + cropResult.data.text;
-            }
+        if (imageBuffer) {
+          // Pass 1: Full Image Recognition using verified PNG buffer
+          const result = await Promise.race([
+            Tesseract.recognize(imageBuffer, 'eng'),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Tesseract OCR timeout after 15 seconds')), 15000)
+            ),
+          ]);
+          rawOcrText = result?.data?.text || '';
+          if (result?.data?.confidence && result.data.confidence > 0) {
+            confidenceScore = Math.min(1.0, Math.max(0.5, result.data.confidence / 100));
           }
-        } catch (cropErr) {
-          console.warn('Card Crop OCR pass skipped/warning:', cropErr);
+
+          // Pass 2: Card Crop Recognition for Mobile Payment Screenshots (GPay / PhonePe / Paytm / UPI)
+          try {
+            const meta = await sharp(imageBuffer).metadata();
+            if (meta.width && meta.height && meta.height > meta.width) {
+              const w = meta.width;
+              const h = meta.height;
+              // Crop upper-middle payment card section (top 18% to 50%) where amounts & recipients are located
+              const cropBuf = await sharp(imageBuffer)
+                .extract({ left: 0, top: Math.floor(h * 0.18), width: w, height: Math.floor(h * 0.32) })
+                .resize(1200)
+                .grayscale()
+                .threshold(140)
+                .png()
+                .toBuffer();
+
+              const cropResult = await Promise.race([
+                Tesseract.recognize(cropBuf, 'eng'),
+                new Promise<never>((_, reject) =>
+                  setTimeout(() => reject(new Error('Tesseract Crop OCR timeout')), 10000)
+                ),
+              ]);
+
+              if (cropResult?.data?.text) {
+                rawOcrText += '\n[PAYMENT_CARD_CROP]\n' + cropResult.data.text;
+              }
+            }
+          } catch (cropErr) {
+            console.warn('Card Crop OCR pass skipped/warning:', cropErr);
+          }
         }
       } catch (err) {
         console.error('Tesseract OCR engine warning (falling back to pattern parser):', err);
@@ -101,34 +114,47 @@ export class TesseractOCRProvider implements IOCRProvider {
     if (rawOcrText && rawOcrText.trim().length > 0) {
       const lowerText = rawOcrText.toLowerCase();
 
-      // --- A. Recipient / Merchant & Amount from "Paid to / Sent to / Transfer to" patterns ---
+      // Helper function to clean amount and handle OCR misreads of rupee symbol '₹' as leading '2' or '7'
+      const cleanAmount = (rawAmtStr: string): number | undefined => {
+        let cleanStr = rawAmtStr.replace(/[^0-9.]/g, '');
+        if (!cleanStr) return undefined;
+
+        // e.g. OCR reads "Paid ₹220" as "Paid 2220" (4 digits starting with 2) or "Paid 7220"
+        if (cleanStr.length === 4 && (cleanStr.startsWith('2') || cleanStr.startsWith('7'))) {
+          const candidate = cleanStr.slice(1);
+          const val = parseFloat(candidate);
+          if (!isNaN(val) && val > 0) return val;
+        }
+
+        const val = parseFloat(cleanStr);
+        return !isNaN(val) && val > 0 ? val : undefined;
+      };
+
+      // --- A. Recipient / Merchant & Amount from "Paid to / Sent to / Transfer to / To" patterns ---
       let paidToMerchant = '';
       let paidToAmount: number | undefined = undefined;
 
-      const paidToRegex = /(?:paid\s*to|sent\s*to|transfer\s*to|payment\s*to|towards|zz)\s*[:\-]?\s*\n?\s*([^\n]+)/i;
+      const paidToRegex = /(?:paid\s*to|sent\s*to|transfer\s*to|payment\s*to|towards|to)\s*[:\|\-]?\s*\n?\s*([^\n]+)/i;
       const paidToMatch = rawOcrText.match(paidToRegex);
-      console.log(paidToMatch, "♨️♨️♨️")
 
       if (paidToMatch && paidToMatch[1]) {
         const candidateLine = paidToMatch[1].replace(/[@~©®><=\|\}]/g, '').trim();
+        const cleanedCandidate = candidateLine.replace(/\s*(?:pay\s*again|view\s*history|share\s*receipt|split\s*expense|reorder|send\s*again).*$/i, '').trim();
 
-        // Check if candidateLine contains BOTH merchant name and trailing amount
-        const nameAmtMatch = candidateLine.match(/^(.+?)\s+([₹\$%]?\s*\d{1,3}(?:[,\s]\d{2,3})*(?:\.\d{1,2})?|\d+)\s*$/);
+        // Check if candidateLine contains BOTH merchant name and trailing amount (e.g. "Jothi 10,000")
+        const nameAmtMatch = candidateLine.match(/^(.+?)\s+([₹\$%]?\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)\s*$/);
         if (nameAmtMatch) {
           const rawName = nameAmtMatch[1].trim();
-          const rawAmt = nameAmtMatch[2].replace(/[^0-9.]/g, '');
+          const rawAmt = nameAmtMatch[2];
 
           if (rawName.length >= 2 && rawName.length <= 50) {
             paidToMerchant = rawName;
           }
-          const parsedAmt = parseFloat(rawAmt);
-          if (!isNaN(parsedAmt) && parsedAmt > 0) {
-            paidToAmount = parsedAmt;
-          }
+          paidToAmount = cleanAmount(rawAmt);
         } else {
-          // Single merchant name on line without inline amount
-          if (candidateLine.length >= 2 && candidateLine.length <= 50) {
-            paidToMerchant = candidateLine;
+          const targetName = cleanedCandidate.length >= 2 ? cleanedCandidate : candidateLine;
+          if (targetName.length >= 2 && targetName.length <= 50) {
+            paidToMerchant = targetName;
           }
         }
       }
@@ -175,72 +201,67 @@ export class TesseractOCRProvider implements IOCRProvider {
         'phonepe',
         'gpay',
         'paytm',
+        'slice',
       ];
-      const matchedBrand = knownBrands.find((brand) => lowerText.includes(brand));
+      const filteredBrands = knownBrands.filter(b => b !== 'phonepe' && b !== 'slice' && b !== 'gpay' && b !== 'paytm');
+      const matchedBrand = filteredBrands.find((brand) => lowerText.includes(brand));
 
       if (matchedBrand) {
         merchant = matchedBrand.charAt(0).toUpperCase() + matchedBrand.slice(1);
-      } else if (bankingName) {
-        // Preferred official registered bank holder name for P2P/UPI payments
-        merchant = bankingName;
       } else if (paidToMerchant) {
-        // Recipient / merchant name directly after "Paid to" (e.g. FRROTT3 or Ban Sowc Raw)
         merchant = paidToMerchant;
+      } else if (bankingName) {
+        merchant = bankingName;
       } else {
         const lines = rawOcrText
           .split('\n')
           .map((l) => l.trim())
-          .filter((l) => l.length > 0 && !/^(pass|crop|full|result|transaction|paid|sent|debited)/i.test(l));
+          .filter((l) => l.length > 0 && !/^(pass|crop|full|result|transaction|paid|sent|debited|slice)/i.test(l));
         if (lines.length > 0) {
           merchant = lines.find((l) => l.length >= 3 && !/^\d+$/.test(l)) || lines[0];
         }
       }
 
       // --- E. Amount Extraction Priority ---
-      // Priority 1: Amount directly extracted from "Paid to" line (e.g. 14,000 from "FRROTT3 14,000" or 14 from "Ban Sowc Raw 14")
+      // Priority 1: Amount directly extracted from "Paid to" line (e.g. 10,000 from "Jothi 10,000")
       if (paidToAmount && paidToAmount > 0) {
         amount = paidToAmount;
       }
 
-      // Priority 2: Number right above "Paid to" or "Sent to" (e.g. 2250 / 14000 above Paid to)
+      // Priority 2: Header match "Paid <amount>" e.g. "Paid 2220" or "Paid 10,000" or "Paid ₹220"
       if (!amount) {
-        const amountNearPaid = rawOcrText.match(/([₹\$%]?\s*\d{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})?|\d{1,6})\s*\n\s*(?:paid\s*to|sent\s*to|transfer\s*to)/i);
-        if (amountNearPaid && amountNearPaid[1]) {
-          let rawAmtStr = amountNearPaid[1].replace(/[^0-9.]/g, '');
-          if (rawAmtStr.length === 4 && (rawAmtStr.startsWith('2') || rawAmtStr.startsWith('7'))) {
-            rawAmtStr = rawAmtStr.slice(1);
-          }
-          const parsedNear = parseFloat(rawAmtStr);
-          if (!isNaN(parsedNear) && parsedNear > 0) {
-            amount = parsedNear;
-          }
+        const paidHeaderMatch = rawOcrText.match(/paid\s*([₹\$%]?\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)/i);
+        if (paidHeaderMatch && paidHeaderMatch[1]) {
+          amount = cleanAmount(paidHeaderMatch[1]);
         }
       }
 
-      // Priority 3: Explicit monetary regex with currency symbols / keywords
+      // Priority 3: Amount near "Paid to" or "Sent to"
       if (!amount) {
-        const totalRegex = /(?:total|amount|paid|net payable|subtotal|grand total|rs\.?|inr|₹|\%)\D*([₹\$Rs\.]*\s*\d{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})?|\d+)/i;
+        const amountNearPaid = rawOcrText.match(/([₹\$%]?\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)\s*\n\s*(?:paid\s*to|sent\s*to|transfer\s*to)/i);
+        if (amountNearPaid && amountNearPaid[1]) {
+          amount = cleanAmount(amountNearPaid[1]);
+        }
+      }
+
+      // Priority 4: Explicit monetary regex with currency symbols / total keywords
+      if (!amount) {
+        const totalRegex = /(?:total|amount|net payable|subtotal|grand total|rs\.?|inr|₹|\%)\D*([₹\$Rs\.]*\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)/i;
         const totalMatch = rawOcrText.match(totalRegex);
         if (totalMatch && totalMatch[1]) {
-          const parsedAmt = parseFloat(totalMatch[1].replace(/[^0-9.]/g, ''));
-          if (!isNaN(parsedAmt) && parsedAmt > 0) {
-            amount = parsedAmt;
-          }
+          amount = cleanAmount(totalMatch[1]);
         }
       }
 
-      // Priority 4: Currency symbol match (₹250, %250, Rs 250)
+      // Priority 5: Currency symbol match (₹250, %250, Rs 250)
       if (!amount) {
         const currencyMatch = rawOcrText.match(/(?:[₹\$]|rs\.?|inr|\%)\s*(\d{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})?|\d+)/i);
         if (currencyMatch && currencyMatch[1]) {
-          const parsedCurrency = parseFloat(currencyMatch[1].replace(/[^0-9.]/g, ''));
-          if (!isNaN(parsedCurrency) && parsedCurrency > 0) {
-            amount = parsedCurrency;
-          }
+          amount = cleanAmount(currencyMatch[1]);
         }
       }
 
-      // Priority 5: Any formatted amount with commas or decimals in text (e.g. 14,000 or 450.00)
+      // Priority 6: Any formatted amount with commas or decimals in text (e.g. 10,000 or 450.00)
       if (!amount) {
         const allFormattedAmounts = Array.from(rawOcrText.matchAll(/(\d{1,3}(?:,\d{3})+(?:\.\d{2})?|\d+\.\d{2})/g))
           .map((m) => parseFloat(m[1].replace(/,/g, '')))
@@ -251,12 +272,35 @@ export class TesseractOCRProvider implements IOCRProvider {
       }
 
       // --- F. Date Extraction ---
-      const dateRegex = /(\d{4}[-\/]\d{1,2}[-\/]\d{1,2})|(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})|(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*,?\s*\d{0,4})/i;
-      const dateMatch = rawOcrText.match(dateRegex);
-      if (dateMatch) {
-        const parsedDate = dayjs(dateMatch[0]);
-        if (parsedDate.isValid()) {
-          date = parsedDate.format('YYYY-MM-DD');
+      const dateRegexes = [
+        /(\d{4}[-\/]\d{1,2}[-\/]\d{1,2})|(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})/i,
+        /(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s,'"`\-]*\d{2,4})/i,
+        /((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}[\s,'"`\-]*\d{2,4})/i,
+      ];
+
+      for (const regex of dateRegexes) {
+        const m = rawOcrText.match(regex);
+        if (m && m[0]) {
+          const cleanedDateStr = m[0].replace(/['"`]/g, ' ').replace(/\s+/g, ' ').trim();
+          const parsedDate = dayjs(cleanedDateStr, ['YYYY-MM-DD', 'DD/MM/YYYY', 'DD-MM-YYYY', 'DD MMM YY', 'DD MMM YYYY', 'MMM DD YYYY', 'DD MMM']);
+          if (parsedDate.isValid()) {
+            date = parsedDate.format('YYYY-MM-DD');
+            break;
+          }
+        }
+      }
+
+      // Fallback: PhonePe Transaction ID date format TyyMMdd... e.g. T2609141227028855544033 -> 2026-09-14
+      if (date === dayjs().format('YYYY-MM-DD')) {
+        const phonePeTxnMatch = rawOcrText.match(/\bT(2[0-9])(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])\d+/);
+        if (phonePeTxnMatch) {
+          const yy = phonePeTxnMatch[1];
+          const mm = phonePeTxnMatch[2];
+          const dd = phonePeTxnMatch[3];
+          const candidateDate = `20${yy}-${mm}-${dd}`;
+          if (dayjs(candidateDate).isValid()) {
+            date = candidateDate;
+          }
         }
       }
 
