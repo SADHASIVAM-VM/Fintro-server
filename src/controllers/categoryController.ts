@@ -11,9 +11,22 @@ export const getCategories = async (req: AuthenticatedRequest, res: Response): P
 
   try {
     // Return standard default categories (no createdBy) AND user-created categories
-    const categories = await Category.find({
+    let categories = await Category.find({
       $or: [{ createdBy: { $exists: false } }, { createdBy: req.user.id }],
     }).lean();
+
+    // Ensure standard 'Other' fallback category exists
+    const hasOther = categories.some((c: any) => c.name.toLowerCase() === 'other');
+    if (!hasOther) {
+      const otherDoc = await Category.create({
+        name: 'Other',
+        color: '#64748B',
+        icon: 'MoreHorizontal',
+        description: 'Other and miscellaneous expenses',
+      });
+      categories.push(otherDoc.toObject ? otherDoc.toObject() : (otherDoc as any));
+    }
+
     res.status(200).json(categories);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Error loading categories' });

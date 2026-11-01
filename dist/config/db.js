@@ -4,7 +4,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.connectDB = void 0;
+const dotenv_1 = require("dotenv");
 const mongoose_1 = __importDefault(require("mongoose"));
+const path_1 = __importDefault(require("path"));
+(0, dotenv_1.configDotenv)({ path: path_1.default.join(__dirname, './src', '.env') });
 const connectDB = async () => {
     try {
         const connStr = process.env.MONGODB_URI || "";

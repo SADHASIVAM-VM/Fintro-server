@@ -5,4 +5,6 @@ const reportsController_1 = require("../controllers/reportsController");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 router.get('/expenses/csv', auth_1.authenticate, reportsController_1.exportExpensesCSV);
+router.post('/send-weekly-review', auth_1.authenticate, reportsController_1.sendWeeklyReviewEmail);
+router.get('/preview-weekly-review', auth_1.authenticate, reportsController_1.previewWeeklyReview);
 exports.default = router;

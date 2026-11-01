@@ -6,7 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
-const path_1 = __importDefault(require("path"));
 const db_1 = require("./config/db");
 const error_1 = require("./middleware/error");
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
@@ -21,6 +20,15 @@ const savingsRoutes_1 = __importDefault(require("./routes/savingsRoutes"));
 const reportsRoutes_1 = __importDefault(require("./routes/reportsRoutes"));
 const settingsRoutes_1 = __importDefault(require("./routes/settingsRoutes"));
 const incomeRoutes_1 = __importDefault(require("./routes/incomeRoutes"));
+const accountRoutes_1 = __importDefault(require("./routes/accountRoutes"));
+const transactionRoutes_1 = __importDefault(require("./routes/transactionRoutes"));
+const recurringRoutes_1 = __importDefault(require("./routes/recurringRoutes"));
+const subscriptionRoutes_1 = __importDefault(require("./routes/subscriptionRoutes"));
+const planningRoutes_1 = __importDefault(require("./routes/planningRoutes"));
+const inboxRoutes_1 = __importDefault(require("./routes/inboxRoutes"));
+const insightsRoutes_1 = __importDefault(require("./routes/insightsRoutes"));
+const imageUpload_1 = require("./services/imageUpload");
+const weeklyReviewCron_1 = require("./jobs/weeklyReviewCron");
 // import { Category } from './models/Category';
 // import { seedMockData } from './config/seedData';
 // Initialize configuration
@@ -41,10 +49,13 @@ const DEFAULT_CATEGORIES = [
     { name: 'Zepto', color: '#A855F7', icon: 'Zap', description: 'Quick commerce Zepto deliveries' },
     { name: 'Swiggy', color: '#F97316', icon: 'Pizza', description: 'Food delivery Swiggy orders' },
     { name: 'Zomato', color: '#DC2626', icon: 'Pizza', description: 'Food delivery Zomato orders' },
+    { name: 'Other', color: '#64748B', icon: 'MoreHorizontal', description: 'Other and miscellaneous expenses' },
 ];
 // Connect to Database & Seed Initial Data
 const initApp = async () => {
     await (0, db_1.connectDB)();
+    // Initialize background schedulers
+    (0, weeklyReviewCron_1.initWeeklyReviewCron)();
     // Seed standard default categories
     // try {
     //   for (const cat of DEFAULT_CATEGORIES) {
@@ -66,19 +77,22 @@ const initApp = async () => {
     });
 };
 // Express Middlewares
-// app.use(cors({
-//   origin: process.env.ALLOWED_CORS
-// }));
-app.use((0, cors_1.default)());
+app.use((0, cors_1.default)({
+    origin: process.env.ALLOWED_CORS
+}));
+// app.use(cors())
 app.use(express_1.default.json({ limit: '10mb' }));
-// Serve static uploaded receipts
-app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads')));
-// Routes Bindings
+// Serve static uploaded receipts safely across local and serverless environments
+const uploadDir = (0, imageUpload_1.getUploadDir)();
+app.use('/uploads', express_1.default.static(uploadDir));
+// Routes Bindings (Both Plural & Singular Aliases for full client/API compatibility)
 app.use('/api/auth', authRoutes_1.default);
 app.use('/api/users', userRoutes_1.default);
 app.use('/api/dashboard', dashboardRoutes_1.default);
 app.use('/api/expenses', expenseRoutes_1.default);
+app.use('/api/expense', expenseRoutes_1.default);
 app.use('/api/categories', categoryRoutes_1.default);
+app.use('/api/category', categoryRoutes_1.default);
 app.use('/api/borrow', borrowRoutes_1.default);
 app.use('/api/emi', emiRoutes_1.default);
 app.use('/api/room', roomRoutes_1.default);
@@ -86,6 +100,16 @@ app.use('/api/savings', savingsRoutes_1.default);
 app.use('/api/reports', reportsRoutes_1.default);
 app.use('/api/settings', settingsRoutes_1.default);
 app.use('/api/income', incomeRoutes_1.default);
+app.use('/api/accounts', accountRoutes_1.default);
+app.use('/api/account', accountRoutes_1.default);
+app.use('/api/transactions', transactionRoutes_1.default);
+app.use('/api/transaction', transactionRoutes_1.default);
+app.use('/api/recurring', recurringRoutes_1.default);
+app.use('/api/subscriptions', subscriptionRoutes_1.default);
+app.use('/api/subscription', subscriptionRoutes_1.default);
+app.use('/api/planning', planningRoutes_1.default);
+app.use('/api/inbox', inboxRoutes_1.default);
+app.use('/api/insights', insightsRoutes_1.default);
 // Base Health Check Route
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });

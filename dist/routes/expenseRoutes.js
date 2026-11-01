@@ -2,12 +2,15 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const expenseController_1 = require("../controllers/expenseController");
+const inboxController_1 = require("../controllers/inboxController");
 const auth_1 = require("../middleware/auth");
 const imageUpload_1 = require("../services/imageUpload");
 const router = (0, express_1.Router)();
 router.use(auth_1.authenticate);
 router.get('/', expenseController_1.getExpenses);
 router.post('/', imageUpload_1.upload.single('receipt'), expenseController_1.createExpense);
+router.post('/ocr', imageUpload_1.upload.single('receipt'), inboxController_1.processReceiptUpload);
+router.post('/upload', imageUpload_1.upload.single('receipt'), inboxController_1.processReceiptUpload);
 router.patch('/:id', imageUpload_1.upload.single('receipt'), expenseController_1.updateExpense);
 router.delete('/:id', expenseController_1.deleteExpense);
 exports.default = router;

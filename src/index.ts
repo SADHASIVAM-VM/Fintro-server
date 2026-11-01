@@ -25,6 +25,7 @@ import inboxRoutes from './routes/inboxRoutes';
 import insightsRoutes from './routes/insightsRoutes';
 import { getUploadDir } from './services/imageUpload';
 import { User } from './models/User';
+import { initWeeklyReviewCron } from './jobs/weeklyReviewCron';
 import fs from "fs"
 // import { Category } from './models/Category';
 // import { seedMockData } from './config/seedData';
@@ -49,11 +50,15 @@ const DEFAULT_CATEGORIES = [
   { name: 'Zepto', color: '#A855F7', icon: 'Zap', description: 'Quick commerce Zepto deliveries' },
   { name: 'Swiggy', color: '#F97316', icon: 'Pizza', description: 'Food delivery Swiggy orders' },
   { name: 'Zomato', color: '#DC2626', icon: 'Pizza', description: 'Food delivery Zomato orders' },
+  { name: 'Other', color: '#64748B', icon: 'MoreHorizontal', description: 'Other and miscellaneous expenses' },
 ];
 
 // Connect to Database & Seed Initial Data
 const initApp = async () => {
   await connectDB();
+
+  // Initialize background schedulers
+  initWeeklyReviewCron();
 
   // Seed standard default categories
   // try {
