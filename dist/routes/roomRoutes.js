@@ -17,9 +17,11 @@ router.post('/bills/:id/pay', roomController_1.payRoomBill);
 // Purchases Routes
 router.get('/purchases', roomController_1.getRoomPurchases);
 router.post('/purchases', imageUpload_1.upload.single('bill'), roomController_1.createRoomPurchase);
+router.delete('/purchases/:id', roomController_1.deleteRoomPurchase);
 // Inventory Routes
 router.get('/inventory', roomController_1.getRoomInventory);
 router.post('/inventory', roomController_1.createRoomInventoryItem);
 router.patch('/inventory/:id', roomController_1.updateRoomInventoryItem);
+router.put('/inventory/:id', roomController_1.updateRoomInventoryItem);
 router.delete('/inventory/:id', roomController_1.deleteRoomInventoryItem);
 exports.default = router;

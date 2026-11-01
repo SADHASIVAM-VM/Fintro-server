@@ -10,9 +10,20 @@ const getCategories = async (req, res) => {
     }
     try {
         // Return standard default categories (no createdBy) AND user-created categories
-        const categories = await Category_1.Category.find({
+        let categories = await Category_1.Category.find({
             $or: [{ createdBy: { $exists: false } }, { createdBy: req.user.id }],
         }).lean();
+        // Ensure standard 'Other' fallback category exists
+        const hasOther = categories.some((c) => c.name.toLowerCase() === 'other');
+        if (!hasOther) {
+            const otherDoc = await Category_1.Category.create({
+                name: 'Other',
+                color: '#64748B',
+                icon: 'MoreHorizontal',
+                description: 'Other and miscellaneous expenses',
+            });
+            categories.push(otherDoc.toObject ? otherDoc.toObject() : otherDoc);
+        }
         res.status(200).json(categories);
     }
     catch (error) {

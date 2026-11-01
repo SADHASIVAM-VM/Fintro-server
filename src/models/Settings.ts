@@ -9,6 +9,7 @@ export interface ISettings extends Document {
     emiReminders: boolean;
     billReminders: boolean;
     budgetAlerts: boolean;
+    weeklyEmailReview?: boolean;
   };
   user: mongoose.Types.ObjectId;
 }
@@ -23,6 +24,7 @@ const SettingsSchema: Schema = new Schema(
       emiReminders: { type: Boolean, default: true },
       billReminders: { type: Boolean, default: true },
       budgetAlerts: { type: Boolean, default: true },
+      weeklyEmailReview: { type: Boolean, default: true },
     },
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
   },

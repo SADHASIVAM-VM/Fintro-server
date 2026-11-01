@@ -4,6 +4,7 @@ exports.deleteExpense = exports.updateExpense = exports.createExpense = exports.
 const Expense_1 = require("../models/Expense");
 const Category_1 = require("../models/Category");
 const upload_service_1 = require("../services/upload.service");
+const ocr_service_1 = require("../services/ocr.service");
 // GET PAGINATED EXPENSES
 const getExpenses = async (req, res) => {
     if (!req.user) {
@@ -47,10 +48,17 @@ const getExpenses = async (req, res) => {
         }
         const sortOption = {};
         sortOption[sortBy] = sortOrder;
+        if (sortBy === 'date') {
+            sortOption.createdAt = sortOrder;
+        }
         const total = await Expense_1.Expense.countDocuments(query);
         const totalPages = Math.ceil(total / limit);
+        // Calculate total amount of all matching expenses (ignoring page pagination)
+        const matchingExpensesForSum = await Expense_1.Expense.find(query).select('amount').lean();
+        const totalAmount = matchingExpensesForSum.reduce((sum, item) => sum + (item.amount || 0), 0);
         const expenses = await Expense_1.Expense.find(query)
             .populate('category', 'name color icon')
+            .populate('createdBy', 'name')
             .sort(sortOption)
             .skip((page - 1) * limit)
             .limit(limit)
@@ -61,6 +69,7 @@ const getExpenses = async (req, res) => {
             page,
             limit,
             totalPages,
+            totalAmount,
         });
     }
     catch (error) {
@@ -82,18 +91,38 @@ const createExpense = async (req, res) => {
             res.status(400).json({ message: 'Invalid category' });
             return;
         }
-        // const receiptImage = (req as any).file ? `/uploads/${(req as any).file.filename}` : undefined;
-        let receiptImage = "null";
+        let receiptImage = undefined;
+        let finalTitle = title;
+        let finalAmount = Number(amount);
         if (req.file) {
             const uploadResult = await (0, upload_service_1.cloudnairyUpload)(req.file);
             if (uploadResult?.success && uploadResult.Url?.secure_url) {
                 receiptImage = uploadResult.Url.secure_url;
             }
+            else if (req.file.filename) {
+                receiptImage = `/uploads/${req.file.filename}`;
+            }
+            // Auto-extract OCR data if title or amount is missing
+            if (!finalTitle || isNaN(finalAmount) || finalAmount <= 0) {
+                try {
+                    const { extractedData } = await ocr_service_1.ocrProvider.processReceipt(req.file.path, req.file.originalname);
+                    console.log(extractedData, " extracted data ", "♨️♨️♨️♨️♨️📈");
+                    if (!finalTitle && extractedData.merchant) {
+                        finalTitle = extractedData.merchant;
+                    }
+                    if ((isNaN(finalAmount) || finalAmount <= 0) && extractedData.amount) {
+                        finalAmount = extractedData.amount;
+                    }
+                }
+                catch (ocrErr) {
+                    console.error('OCR auto-extract fallback error in createExpense:', ocrErr);
+                }
+            }
         }
         const parsedTags = tags ? (typeof tags === 'string' ? JSON.parse(tags) : tags) : [];
         const expense = new Expense_1.Expense({
-            title,
-            amount: Number(amount),
+            title: finalTitle || 'Receipt Expense',
+            amount: finalAmount || 0,
             category,
             paymentMode,
             date,
@@ -104,7 +133,10 @@ const createExpense = async (req, res) => {
             createdBy: req.user.id,
         });
         await expense.save();
-        const populated = await expense.populate('category', 'name color icon');
+        const populated = await expense.populate([
+            { path: 'category', select: 'name color icon' },
+            { path: 'createdBy', select: 'name' }
+        ]);
         res.status(201).json(populated);
     }
     catch (error) {
@@ -159,9 +191,15 @@ const updateExpense = async (req, res) => {
             if (uploadResult?.success && uploadResult.Url?.secure_url) {
                 expense.receiptImage = uploadResult.Url.secure_url;
             }
+            else if (req.file.filename) {
+                expense.receiptImage = `/uploads/${req.file.filename}`;
+            }
         }
         await expense.save();
-        const populated = await expense.populate('category', 'name color icon');
+        const populated = await expense.populate([
+            { path: 'category', select: 'name color icon' },
+            { path: 'createdBy', select: 'name' }
+        ]);
         res.status(200).json(populated);
     }
     catch (error) {

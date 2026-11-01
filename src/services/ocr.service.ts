@@ -15,6 +15,10 @@ export interface ExtractedReceiptData {
   invoiceNumber?: string;
   items?: Array<{ name: string; price: number }>;
   confidence: number;
+  transactionType?: 'paid' | 'received' | 'unknown';
+  notes?: string;
+  paymentMode?: string;
+  upiRef?: string;
 }
 
 export interface IOCRProvider {
@@ -110,9 +114,47 @@ export class TesseractOCRProvider implements IOCRProvider {
     let date = dayjs().format('YYYY-MM-DD');
     let invoiceNumber = '';
     let noteOrMessage = '';
+    let transactionType: 'paid' | 'received' | 'unknown' = 'unknown';
+    let upiRef = '';
+    let paymentMode = 'upi';
 
     if (rawOcrText && rawOcrText.trim().length > 0) {
       const lowerText = rawOcrText.toLowerCase();
+
+      // --- 0. Detect Transaction Type (Paid / Received) ---
+      if (/\b(?:paid|sent|debited|transaction successful|payment successful)\b/i.test(rawOcrText)) {
+        transactionType = 'paid';
+      } else if (/\b(?:received|credited|money received|payment received|inward)\b/i.test(rawOcrText)) {
+        transactionType = 'received';
+      }
+
+      // --- 0b. Detect Payment Mode ---
+      if (/\bupi\b/i.test(rawOcrText)) paymentMode = 'upi';
+      else if (/\bnet\s*banking\b/i.test(rawOcrText)) paymentMode = 'net_banking';
+      else if (/\bcredit\s*card\b/i.test(rawOcrText)) paymentMode = 'credit_card';
+      else if (/\bdebit\s*card\b/i.test(rawOcrText)) paymentMode = 'debit_card';
+
+      // --- 0c. UPI Ref ID extraction ---
+      const upiRefMatch = rawOcrText.match(/(?:upi\s*ref\s*(?:id|no)?|utr)\s*[:\-]?\s*([0-9]{8,})/i);
+      if (upiRefMatch) upiRef = upiRefMatch[1];
+
+      // --- 0d. Notes / Message from screenshot (Slice Notes or PhonePe Message field) ---
+      const notesLineMatch = rawOcrText.match(/notes?\s*[:\-]\s*([^\n]+)/i);
+      if (notesLineMatch && notesLineMatch[1]) {
+        const rawNote = notesLineMatch[1].replace(/[@~©®><={|}]/g, '').trim();
+        if (rawNote.length >= 2 && rawNote.length < 100) {
+          noteOrMessage = rawNote;
+        }
+      }
+      if (!noteOrMessage) {
+        const msgLineMatch = rawOcrText.match(/(?:message|remark|narration)\s*[:\-]?\s*\n*\s*([^\n]+)/i);
+        if (msgLineMatch && msgLineMatch[1]) {
+          const rawMsg = msgLineMatch[1].replace(/[@~©®><={|}]/g, '').trim();
+          if (rawMsg.length >= 2 && rawMsg.length < 100 && !/^(transaction|debited|banking|transfer|paid|sent|paid to|sent to)/i.test(rawMsg)) {
+            noteOrMessage = rawMsg;
+          }
+        }
+      }
 
       // Helper function to clean amount and handle OCR misreads of rupee symbol '₹' as leading '2' or '7'
       const cleanAmount = (rawAmtStr: string): number | undefined => {
@@ -169,15 +211,17 @@ export class TesseractOCRProvider implements IOCRProvider {
         }
       }
 
-      // --- C. Extract Message / Remarks / Notes ---
-      const messageMatch = rawOcrText.match(/(?:message|note|remarks|description)\s*[:\-]?\s*\n*\s*([^\n]+)/i);
-      if (messageMatch && messageMatch[1]) {
-        const rawMsg = messageMatch[1].replace(/[@~©®><=\|\}]/g, '').trim();
-        if (
-          rawMsg.length >= 2 &&
-          !/^(transaction|debited|banking|transfer|paid|sent|paid to|sent to)/i.test(rawMsg)
-        ) {
-          noteOrMessage = rawMsg;
+      // --- C. Extract Message / Remarks / Notes (fallback only if not already captured by 0d) ---
+      if (!noteOrMessage) {
+        const messageMatch = rawOcrText.match(/(?:message|note|remarks|description)\s*[:\-]?\s*\n*\s*([^\n]+)/i);
+        if (messageMatch && messageMatch[1]) {
+          const rawMsg = messageMatch[1].replace(/[@~©®><={|}]/g, '').trim();
+          if (
+            rawMsg.length >= 2 &&
+            !/^(transaction|debited|banking|transfer|paid|sent|paid to|sent to)/i.test(rawMsg)
+          ) {
+            noteOrMessage = rawMsg;
+          }
         }
       }
 
@@ -354,6 +398,10 @@ export class TesseractOCRProvider implements IOCRProvider {
           { name: 'Taxes / Service Charge', price: Math.round(amount * 0.2) },
         ],
         confidence: confidenceScore,
+        transactionType,
+        notes: noteOrMessage || undefined,
+        paymentMode,
+        upiRef: upiRef || undefined,
       },
     };
   }

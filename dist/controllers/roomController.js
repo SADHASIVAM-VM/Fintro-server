@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteRoomInventoryItem = exports.updateRoomInventoryItem = exports.createRoomInventoryItem = exports.getRoomInventory = exports.createRoomPurchase = exports.getRoomPurchases = exports.payRoomBill = exports.createRoomBill = exports.getRoomBills = exports.payRoomRent = exports.createRoomRent = exports.getRoomRents = void 0;
+exports.deleteRoomInventoryItem = exports.updateRoomInventoryItem = exports.createRoomInventoryItem = exports.getRoomInventory = exports.createRoomPurchase = exports.deleteRoomPurchase = exports.getRoomPurchases = exports.payRoomBill = exports.createRoomBill = exports.getRoomBills = exports.payRoomRent = exports.createRoomRent = exports.getRoomRents = void 0;
 const RoomRent_1 = require("../models/RoomRent");
 const RoomBill_1 = require("../models/RoomBill");
 const RoomInventory_1 = require("../models/RoomInventory");
@@ -107,15 +107,50 @@ exports.payRoomBill = payRoomBill;
 // --- ROOM PURCHASES ENDPOINTS ---
 const getRoomPurchases = async (req, res) => {
     try {
+        const startDate = req.query.startDate ? String(req.query.startDate) : '';
+        const endDate = req.query.endDate ? String(req.query.endDate) : '';
         const query = req.user?.role === 'admin' ? {} : { createdBy: req.user?.id };
-        const purchases = await RoomPurchase_1.RoomPurchase.find(query).sort({ date: -1 }).lean();
-        res.status(200).json(purchases);
+        if (startDate || endDate) {
+            query.date = {};
+            if (startDate)
+                query.date.$gte = startDate;
+            if (endDate)
+                query.date.$lte = endDate;
+        }
+        const purchases = await RoomPurchase_1.RoomPurchase.find(query)
+            .sort({ date: -1, createdAt: -1 })
+            .lean();
+        const totalAmount = purchases.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
+        res.status(200).json({
+            data: purchases,
+            totalAmount,
+        });
     }
     catch (error) {
         res.status(500).json({ message: error.message || 'Error loading room purchases' });
     }
 };
 exports.getRoomPurchases = getRoomPurchases;
+const deleteRoomPurchase = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const purchase = await RoomPurchase_1.RoomPurchase.findById(id);
+        if (!purchase) {
+            res.status(404).json({ message: 'Room purchase not found' });
+            return;
+        }
+        if (purchase.createdBy.toString() !== req.user?.id && req.user?.role !== 'admin') {
+            res.status(403).json({ message: 'Forbidden. You can only delete your own purchases.' });
+            return;
+        }
+        await RoomPurchase_1.RoomPurchase.findByIdAndDelete(id);
+        res.status(200).json({ success: true, id });
+    }
+    catch (error) {
+        res.status(500).json({ message: error.message || 'Error deleting room purchase' });
+    }
+};
+exports.deleteRoomPurchase = deleteRoomPurchase;
 const createRoomPurchase = async (req, res) => {
     const { name, price, quantity, shop, date, warrantyMonths, category } = req.body;
     try {

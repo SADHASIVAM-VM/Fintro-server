@@ -44,6 +44,7 @@ const SettingsSchema = new mongoose_1.Schema({
         emiReminders: { type: Boolean, default: true },
         billReminders: { type: Boolean, default: true },
         budgetAlerts: { type: Boolean, default: true },
+        weeklyEmailReview: { type: Boolean, default: true },
     },
     user: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
 }, { timestamps: true });
